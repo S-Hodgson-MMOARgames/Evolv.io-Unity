@@ -7,4 +7,3 @@ alt="video screenshot" width="240" height="180" border="10" /></a>
 This is an adaptation of the open source code to [the evolv.io evolution simulator](https://www.youtube.com/watch?v=OLnv8QaEDL0) by [carykh](https://www.youtube.com/user/carykh).
 
 This project is mainly for me to explore concepts in neural networks, and machine learning.
-Any insight would be helpful and appreciated.
