@@ -1,13 +1,20 @@
 ﻿// (C) MMOARgames, Inc. All Rights Reserved.
 
+using System;
 using System.Collections.Generic;
 using UnityEngine;
+using Random = UnityEngine.Random;
 
 public class Board : Singleton<Board>
 {
-    public static int BoardWidth = 100;
-    public static int BoardHeight = 100;
-    public const int CREATURE_MINIMUM = 60;
+    [SerializeField]
+    private Vector2 boardSize;
+
+    public static int BoardWidth;
+    public static int BoardHeight;
+
+    private const int CREATURE_MINIMUM = 60;
+    private const int  POPULATION_HISTORY_LENGTH = 200;
 
     public const float MAX_TEMPERATURE = 1.0f;
     public const float MIN_TEMPERATURE = -0.5f;
@@ -17,36 +24,62 @@ public class Board : Singleton<Board>
     private const float MAX_ROCK_ENERGY = 1.6f;
     private const float MIN_CREATURE_ENERGY = 1.2f;
     private const float MAX_CREATURE_ENERGY = 2.0f;
+    private const float RECORD_POPULATION_FEQUENCY = 0.02f;
 
-    public static int CreatureCount = 0;
+    public static int CreatureIndex = 0;
 
-    public static float Year = 0;
+    public float Year;
+    public float SimSpeedMultiplier = 0.0001f;
+
+    public float GlobalTemperature;
 
     public static Tile[,] Tiles;
     public static List<SoftBody> Rocks = null;
     public static List<Creature> Creatures = null;
-    public static Dictionary<Vector2, SoftBody> SoftBodies;
     public static readonly Color BackgroundColor = Color.HSVToRGB(0, 0, 0.1f);
     public static readonly Color RockColor = Color.HSVToRGB(0, 0, 0.5f);
+    public static int[] PopulationHistory;
 
-    public Board(int width, int height, float stepSize)
+    public GameObject TilePrefab;
+    private GameObject tileGroup;
+    public GameObject RockPrefab;
+    public GameObject RockGroup;
+    public GameObject CreaturePrefab;
+    public GameObject CreatureGroup;
+
+    private void Start()
     {
-        BoardWidth = width;
-        BoardHeight = height;
-        Tiles = new Tile[width, height];
-        SoftBodies = new Dictionary<Vector2, SoftBody>();
+        Random.InitState(1000000);
+
+        tileGroup = new GameObject("Tiles");
+        RockGroup = new GameObject("Rocks");
+        CreatureGroup = new GameObject("Creatures");
+
+        tileGroup.transform.SetParent(transform);
+        RockGroup.transform.SetParent(transform);
+        CreatureGroup.transform.SetParent(transform);
+
+        BoardWidth = (int)boardSize.x;
+        BoardHeight = (int)boardSize.y;
+
+        Tiles = new Tile[BoardWidth, BoardHeight];
 
         for (int x = 0; x < BoardWidth; x++)
         {
             for (int y = 0; y < BoardHeight; y++)
             {
                 float bigForce = Mathf.Pow((float)y / BoardHeight, 0.5f);
-                float fertility = Mathf.PerlinNoise(x * stepSize * 3, y * stepSize * 3) * (1 - bigForce) * 5f +
-                                  Mathf.PerlinNoise(x * stepSize * 0.5f, y * stepSize * 0.5f) * bigForce * 5f - 1.5f;
-                float climateType = Mathf.PerlinNoise(x * stepSize * 0.2f + 10000, y * stepSize * 0.2f + 10000) * 1.63f - 0.4f;
+                float fertility = Mathf.PerlinNoise(x * 3, y * 3) * (1 - bigForce) * 5f +
+                                  Mathf.PerlinNoise(x * 0.5f, y * 0.5f) * bigForce * 5f - 1.5f;
+                float climateType = Mathf.PerlinNoise(x * 0.2f + 10000, y * 0.2f + 10000) * 1.63f - 0.4f;
                 climateType = Mathf.Min(Mathf.Max(climateType, 0), 0.8f);
 
-                Tiles[x, y] = new Tile(x, y, fertility, climateType);
+                var newTileObj = Instantiate(TilePrefab, new Vector3(x, y, 0), Quaternion.identity, tileGroup.transform);
+                var tile = newTileObj.GetComponent<Tile>();
+
+                tile.Fertility = fertility;
+                tile.FoodType = climateType;
+                Tiles[x, y] = tile;
             }
         }
 
@@ -56,14 +89,72 @@ public class Board : Singleton<Board>
         {
             float hue, sat, bri;
             Color.RGBToHSV(RockColor, out hue, out sat, out bri);
-            Rocks.Add(new SoftBody(
-                Random.Range(0, BoardWidth), Random.Range(0, BoardHeight), 0, 0,
-                Mathf.Pow(Random.Range(MIN_ROCK_ENERGY, MAX_ROCK_ENERGY), 4), ROCK_DENSITY,
-                hue, sat, bri));
+
+            var newRockObj = Instantiate(RockPrefab, new Vector3(Random.Range(0, BoardWidth), Random.Range(0, BoardHeight), 0), Quaternion.identity, RockGroup.transform);
+            var rock = newRockObj.GetComponent<SoftBody>();
+
+            rock.VelocityX = 0;
+            rock.VelocityY = 0;
+            rock.Energy = Mathf.Pow(Random.Range(MIN_ROCK_ENERGY, MAX_ROCK_ENERGY), 4);
+            rock.EnergyDensity = ROCK_DENSITY;
+            rock.Hue = hue;
+            rock.Saturation = sat;
+            rock.Brightness = bri;
         }
 
         Creatures = new List<Creature>();
         MaintainCreatureMinimum(false);
+
+        PopulationHistory = new int[POPULATION_HISTORY_LENGTH];
+        for (int i = 0; i < POPULATION_HISTORY_LENGTH; i++)
+        {
+            PopulationHistory[i] = 0;
+        }
+    }
+
+    private void Update()
+    {
+        float prevYear = Year;
+        Year += Time.deltaTime * SimSpeedMultiplier;
+
+        if (Math.Abs(Mathf.Floor(Year / RECORD_POPULATION_FEQUENCY) - Mathf.Floor(prevYear / RECORD_POPULATION_FEQUENCY)) > 0.00001f)
+        {
+            for (int i = POPULATION_HISTORY_LENGTH - 1; i >= 1; i--)
+            {
+                PopulationHistory[i] = PopulationHistory[i - 1];
+            }
+
+            PopulationHistory[0] = Creatures.Count;
+        }
+
+        GlobalTemperature = GetGrowthRate(GetSeason());
+        float tempChangeAtStartFrame = GlobalTemperature - GetGrowthRate(GetSeason() - Year);
+        float tempChangeAtEndOfFrame = GetGrowthRate(GetSeason() + Year) - GlobalTemperature;
+
+        // Temp change flipped direction
+        if (tempChangeAtStartFrame * tempChangeAtEndOfFrame <= 0)
+        {
+            for (int x = 0; x < BoardWidth; x++)
+            {
+                for (int y = 0; y < BoardHeight; y++)
+                {
+                    Tiles[x,y].Iterate();
+                }
+            }
+        }
+
+        MaintainCreatureMinimum(false);
+    }
+
+    public static float GetSeason()
+    {
+        return Instance.Year % 1.0f;
+    }
+
+    public static float GetGrowthRate(float time)
+    {
+        float tempRange = MAX_TEMPERATURE - MIN_TEMPERATURE;
+        return MIN_TEMPERATURE + tempRange * 0.5f - tempRange * 0.5f * Mathf.Cos(time * 2 * Mathf.PI);
     }
 
     public static Color GetTileColor(int x, int y)
@@ -87,18 +178,20 @@ public class Board : Singleton<Board>
             }
             else
             {
-                Creatures.Add(new Creature(
-                    newName: "",
-                    mutateName: true,
-                    newBrain: null,
-                    newMouthHue: Random.Range(0, 1),
-                    parents: null, newGeneration: 1,
-                    newRotation: Random.Range(0, 2 * Mathf.PI), newRotationVelocity: 0,
-                    newPositionX: Random.Range(0, BoardWidth), newPositionY: Random.Range(0, BoardHeight),
-                    newVelocityX: 0, newVelocityY: 0,
-                    newEnergy: Random.Range(MIN_CREATURE_ENERGY, MAX_CREATURE_ENERGY), newDensity: 1,
-                    newHue: Random.Range(0, 1), newSaturation: 1, newBrightness: 1
-                ));
+                var newCreatureObj = Instantiate(Instance.CreaturePrefab, new Vector3(Random.Range(0, BoardWidth), Random.Range(0, BoardHeight), 0), Quaternion.AngleAxis(Random.Range(0,360), Vector3.forward), Instance.CreatureGroup.transform);
+                var newCreature = newCreatureObj.GetComponent<Creature>();
+
+                newCreature.name = NameGenerator.NewName();
+                newCreature.name = newCreature.name.Length >= 1 ? NameGenerator.SanitizeName(newCreature.name) : NameGenerator.NewName();
+                newCreature.MouthHue = Random.Range(0, 1);
+                newCreature.Generation = 1;
+                newCreature.Energy = Random.Range(MIN_CREATURE_ENERGY, MAX_CREATURE_ENERGY);
+                newCreature.Density = 1;
+                newCreature.Hue = Random.Range(0, 1);
+                newCreature.Saturation = 1;
+                newCreature.Brightness = 1;
+
+                Creatures.Add(newCreature);
             }
         }
     }

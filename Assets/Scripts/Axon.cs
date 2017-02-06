@@ -7,30 +7,29 @@ public class Axon
     private const int MUTATE_POWER = 9;
     private const float MUTABILITY_MULTIPLIER = 0.7f;
 
+    public readonly float Weight;
+    private readonly float mutability;
     private readonly float mutationMultiplier;
-
-    public float Weight;
-    public float Mutability;
 
     public Axon(float weight, float mutability)
     {
         Weight = weight;
-        Mutability = mutability;
+        this.mutability = mutability;
         mutationMultiplier = Mathf.Pow(0.5f, MUTATE_POWER);
     }
 
     public Axon MutateAxon()
     {
         float mutateMutability = Mathf.Pow(0.5f, RandomSeed() * MUTABILITY_MULTIPLIER);
-        return new Axon(Weight + RandomPower() * Mutability / mutationMultiplier, Mutability * mutateMutability);
+        return new Axon(Weight + RandomPower() * mutability / mutationMultiplier, mutability * mutateMutability);
     }
 
-    public static float RandomPower()
+    private static float RandomPower()
     {
         return Mathf.Pow(RandomSeed(), MUTATE_POWER);
     }
 
-    public static float RandomSeed()
+    private static float RandomSeed()
     {
         return Random.value * 2 - 1;
     }

@@ -1,12 +1,11 @@
 ﻿// (C) MMOARgames, Inc. All Rights Reserved.
 
+using System.Collections.Generic;
 using UnityEngine;
 
+[RequireComponent(typeof(SpriteRenderer))]
 public class Tile : MonoBehaviour
 {
-    public readonly int PositionXPos;
-    public readonly int PositionYPos;
-
     private const float FOOD_GROWTH_RATE = 1.0f;
     private const float MAX_GROWTH_LEVEL = 3.0f;
 
@@ -15,10 +14,21 @@ public class Tile : MonoBehaviour
     private readonly Color blackColor   = Color.HSVToRGB(0.0f, 1.0f, 0.0f);
     private readonly Color waterColor   = Color.HSVToRGB(0.0f, 0.0f, 0.0f);
 
-    public float FoodType { get; set; }
-    public float FoodLevel { get; set; }
-    public float Fertility { get; set; }
-    public float ClimateType { get; set; }
+    public float FoodType;
+
+    public float FoodLevel
+    {
+        get
+        {
+            return foodLevel;
+        }
+        set
+        {
+            foodLevel = value;
+        }
+    }
+
+    public float Fertility;
 
     [SerializeField]
     private Color tileColor;
@@ -26,6 +36,7 @@ public class Tile : MonoBehaviour
     {
         get
         {
+            Iterate();
             Color foodColor = Color.HSVToRGB(FoodType, 1, 1);
 
             if (Fertility > 1)
@@ -43,48 +54,53 @@ public class Tile : MonoBehaviour
 
     private float lastUpdateTime;
 
-    public Tile(int xPos, int yPos, float newFertility, float type)
+    public List<SoftBody> SoftBodies;
+    private float foodLevel;
+    private SpriteRenderer spriteRenderer;
+
+    private void Awake()
     {
-        PositionXPos = xPos;
-        PositionYPos = yPos;
-        Fertility = Mathf.Max(0, newFertility);
-        ClimateType = FoodType = type;
+        spriteRenderer = gameObject.GetComponent<SpriteRenderer>();
     }
 
-    private void Update()
+    public void Iterate()
     {
-        float updateTime = Board.Year;
+        float updateTime = Board.Instance.Year;
 
-        if (Mathf.Abs(lastUpdateTime - updateTime) >= 0.00001f)
+        if (!(Mathf.Abs(lastUpdateTime - updateTime) >= 0.00001f))
         {
-            float growthChange = GetGrowthOverTimeRange(lastUpdateTime, updateTime);
+            return;
+        }
 
-            // If we're a water tile.
-            if (Fertility > 1)
+        float growthChange = GetGrowthOverTimeRange(lastUpdateTime, updateTime);
+
+        // If we're a water tile.
+        if (Fertility > 1)
+        {
+            FoodLevel = 0;
+        }
+        else
+        {
+            if (growthChange > 0)
             {
-                FoodLevel = 0;
-            }
-            else
-            {
-                if (growthChange > 0)
+                if (FoodLevel < MAX_GROWTH_LEVEL)
                 {
-                    if (FoodLevel < MAX_GROWTH_LEVEL)
-                    {
-                        float newDistToMax = (MAX_GROWTH_LEVEL - FoodLevel) * Mathf.Pow(MathUtils.EULERS_NUMBER, -growthChange * Fertility * FOOD_GROWTH_RATE);
-                        float foodGrowthAmount = MAX_GROWTH_LEVEL - newDistToMax - FoodLevel;
+                    float newDistToMax = (MAX_GROWTH_LEVEL - FoodLevel) * Mathf.Pow(MathUtils.EULERS_NUMBER, -growthChange * Fertility * FOOD_GROWTH_RATE);
+                    float foodGrowthAmount = MAX_GROWTH_LEVEL - newDistToMax - FoodLevel;
 
-                        FoodLevel += foodGrowthAmount;
-                    }
-                    else
-                    {
-                        FoodLevel -= FoodLevel - FoodLevel * Mathf.Pow(MathUtils.EULERS_NUMBER, growthChange * FOOD_GROWTH_RATE);
-                    }
+                    FoodLevel += foodGrowthAmount;
+                }
+                else
+                {
+                    FoodLevel -= FoodLevel - FoodLevel * Mathf.Pow(MathUtils.EULERS_NUMBER, growthChange * FOOD_GROWTH_RATE);
                 }
             }
-
-            FoodLevel = Mathf.Max(FoodLevel, 0);
-            lastUpdateTime = updateTime;
         }
+
+        FoodLevel = Mathf.Max(FoodLevel, 0);
+        lastUpdateTime = updateTime;
+
+        spriteRenderer.color = TileColor;
     }
 
     private static Color InterpolateColor(Color a, Color b, float x)

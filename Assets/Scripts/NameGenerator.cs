@@ -1,6 +1,5 @@
 ﻿// (C) MMOARgames, Inc. All Rights Reserved.
 
-using System;
 using UnityEngine;
 using Random = UnityEngine.Random;
 
@@ -9,7 +8,7 @@ public class NameGenerator
     private const int MIN_NAME_LENGTH = 3;
     private const int MAX_NAME_LENGTH = 10;
 
-    private static float[] letterFrequencies =
+    private static readonly float[] LetterFrequencies =
     {
         8.167f, 1.492f, 2.782f, 4.253f, 12.702f, 2.228f, 2.015f, 6.094f, 6.966f,
         0.153f, 0.772f, 4.025f, 2.406f, 6.749f, 7.507f, 1.929f, 0.095f, 5.987f,
@@ -21,6 +20,12 @@ public class NameGenerator
         string nameSoFar = string.Empty;
         int chosenLength = Random.Range(MIN_NAME_LENGTH, MAX_NAME_LENGTH);
 
+        if (chosenLength < 3)
+        {
+            Debug.LogError("Name Genergation");
+            chosenLength = MAX_NAME_LENGTH;
+        }
+
         for (int i = 0; i < chosenLength; i++)
         {
             nameSoFar += GetRandomChar().ToString();
@@ -31,12 +36,18 @@ public class NameGenerator
 
     public static string MutateName(string input)
     {
+        if (string.IsNullOrEmpty(input))
+        {
+            Debug.LogWarning("Tried to mutate an empty string!");
+            return NewName();
+        }
+
         if (input.Length >= 3)
         {
             if (Random.value < 0.2f)
             {
                 int removeIndex = Random.Range(0, input.Length);
-                input = input.Substring(0, removeIndex) + input.Substring(removeIndex + 1, input.Length);
+                input = input.Substring(0, removeIndex) + input.Substring(removeIndex + 1, input.Length - (removeIndex + 1));
             }
         }
 
@@ -45,12 +56,12 @@ public class NameGenerator
             if (Random.value < 0.2f)
             {
                 int insertIndex = Random.Range(0, input.Length + 1);
-                input = input.Substring(0, insertIndex) + GetRandomChar().ToString() + input.Substring(insertIndex, input.Length);
+                input = input.Substring(0, insertIndex) + GetRandomChar().ToString() + input.Substring(insertIndex, input.Length - insertIndex);
             }
         }
 
         int changeIndex = Random.Range(0, input.Length);
-        input = input.Substring(0, changeIndex) + GetRandomChar().ToString() + input.Substring(changeIndex + 1, input.Length);
+        input = input.Substring(0, changeIndex) + GetRandomChar().ToString() + input.Substring(changeIndex, input.Length - changeIndex);
 
         return input;
     }
@@ -61,11 +72,11 @@ public class NameGenerator
 
         for (int i = 0; i < input.Length; i++)
         {
-            float portion = input[i].Length / input.Length;
+            float portion = (float)input[i].Length / input.Length;
             float start = Mathf.Min(Mathf.Max(Mathf.Round(portion * i), 0), input[i].Length);
             float end = Mathf.Min(Mathf.Max(Mathf.Round(portion * (i + 1)), 0), input[i].Length);
 
-            output = output + input[i].Substring((int)start, (int)end);
+            output = output + input[i].Substring((int)start, (int)(end - start));
         }
 
         return output;
@@ -78,7 +89,7 @@ public class NameGenerator
 
         while (letterFactor > 0)
         {
-            letterFactor -= letterFrequencies[letterChoice];
+            letterFactor -= LetterFrequencies[letterChoice];
             letterChoice++;
         }
 

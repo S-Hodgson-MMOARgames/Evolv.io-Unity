@@ -32,13 +32,12 @@ public class Creature : SoftBody
     internal const float MINIMUM_SURVIVABLE_SIZE = 0.06f;
 
     private static readonly float[] VisionAngles = {0.0f, -0.4f, 0.4f};
-
     private readonly float[] visionDistances = {0.0f, -0.7f, 0.7f};
-    private readonly float[] prevEnergy = new float[ENERGY_HISTORY_LENGTH];
-    private readonly float[] visionResults = new float[MAX_VISION_RESULTS];
-    private readonly float[] visionOccludedX = new float[VisionAngles.Length];
-    private readonly float[] visionOccludedY = new float[VisionAngles.Length];
 
+    private float[] prevEnergy = new float[ENERGY_HISTORY_LENGTH];
+    private float[] visionResults = new float[MAX_VISION_RESULTS];
+    private float[] visionOccludedX = new float[VisionAngles.Length];
+    private float[] visionOccludedY = new float[VisionAngles.Length];
 
     public int Id;
     public int Generation;
@@ -46,43 +45,54 @@ public class Creature : SoftBody
     public Brain CreatureBrain;
     public float PreferredRank = 8;
 
-    private float mouthHue;
-    private float rotation;
+    public float MouthHue;
+
+    private float Rotation
+    {
+        get
+        {
+            return transform.rotation.eulerAngles.z;
+        }
+        set
+        {
+            transform.rotation = Quaternion.AngleAxis(value, Vector3.forward);
+        }
+    }
+
     private float fightLevel;
     private float rotationVelocity;
 
-    public Creature(
-        string newName, bool mutateName,
-        Brain newBrain, float newMouthHue,
-        List<Creature> parents, int newGeneration,
-        float newRotation, float newRotationVelocity,
-
-        float newPositionX, float newPositionY, float newVelocityX, float newVelocityY, float newEnergy, float newDensity, float newHue, float newSaturation, float newBrightness) :
-        base(newPositionX, newPositionY, newVelocityX, newVelocityY, newEnergy, newDensity, newHue, newSaturation, newBrightness)
+    protected override void Awake()
     {
-        Id = Board.CreatureCount + 1;
-        Board.CreatureCount++;
+        base.Awake();
 
-        name = newName.Length >= 1 ?
-            NameGenerator.SanitizeName(mutateName ?
-                NameGenerator.MutateName(newName) : newName) :
-            NameGenerator.NewName();
+        Id = Board.CreatureIndex + 1;
+        Board.CreatureIndex++;
 
-        if (newBrain == null)
-        {
-            CreatureBrain = new Brain(null, null);
-        }
-
-        mouthHue = newMouthHue;
-        Parents = parents;
-        Generation = newGeneration;
-        rotation = newRotation;
-        rotationVelocity = newRotationVelocity;
+        CreatureBrain = new Brain(null, null);
 
         for (int i = 0; i < MAX_VISION_RESULTS; i++)
         {
             visionResults[i] = 0;
         }
+    }
+
+    private void Update()
+    {
+        float timeStep = Time.deltaTime * Board.Instance.SimSpeedMultiplier;
+
+        SetPrevEnergy();
+
+        Collide();
+        Metabolize(timeStep);
+    }
+
+    private void LateUpdate()
+    {
+        float timeStep = Time.deltaTime * Board.Instance.SimSpeedMultiplier;
+        UseBrain(timeStep, true/*TODO: Toggle user control.*/);
+        ApplyMotions(timeStep);
+        See();
     }
 
     protected override void ApplyMotions(float timeStep)
@@ -94,11 +104,11 @@ public class Creature : SoftBody
 
         base.ApplyMotions(timeStep);
 
-        rotation += rotationVelocity;
+        Rotation += rotationVelocity;
         rotationVelocity *= Mathf.Max(0, 1 - FRICTION / GetMass());
     }
 
-    public void UseBrain(float timeStep, bool useOutput)
+    private void UseBrain(float timeStep, bool isAutonomus)
     {
         var inputs = new float[Brain.NUMBER_OF_INPUTS];
 
@@ -108,10 +118,10 @@ public class Creature : SoftBody
         }
 
         inputs[9] = Energy;
-        inputs[10] = mouthHue;
+        inputs[10] = MouthHue;
         CreatureBrain.Input(inputs);
 
-        if (useOutput)
+        if (isAutonomus)
         {
             float[] output = CreatureBrain.Outputs();
             Hue = Mathf.Abs(output[0]) % 1.0f;
@@ -120,12 +130,12 @@ public class Creature : SoftBody
             Eat(output[3], timeStep);
             Fight(output[4], timeStep);
 
-            if (output[5] > 0 && Board.Year - BirthTime >= MATURE_AGE && Energy > SAFE_SIZE)
+            if (output[5] > 0 && Board.Instance.Year - BirthTime >= MATURE_AGE && Energy > SAFE_SIZE)
             {
                 Reproduce(SAFE_SIZE);
             }
 
-            mouthHue = Mathf.Abs(output[10]) % 1.0f;
+            MouthHue = Mathf.Abs(output[10]) % 1.0f;
         }
     }
 
@@ -133,8 +143,8 @@ public class Creature : SoftBody
     {
         float multiplier = amount * timeStep * GetMass();
 
-        VelocityX += Mathf.Cos(rotation) * multiplier;
-        VelocityY += Mathf.Sin(rotation) * multiplier;
+        VelocityX += Mathf.Cos(Rotation) * multiplier;
+        VelocityY += Mathf.Sin(Rotation) * multiplier;
 
         if (amount >= 0)
         {
@@ -175,7 +185,7 @@ public class Creature : SoftBody
 
             coveredTile.FoodLevel -= foodToEat;
 
-            float foodDistance = Mathf.Abs(coveredTile.FoodType - mouthHue);
+            float foodDistance = Mathf.Abs(coveredTile.FoodType - MouthHue);
             float multiplier = 1.0f - foodDistance / FOOD_SENSITIVITY;
 
             if (multiplier >= 0)
@@ -193,7 +203,7 @@ public class Creature : SoftBody
 
     private void Fight(float amount, float timeStep)
     {
-        if (amount > 0 && Board.Year - BirthTime >= MATURE_AGE)
+        if (amount > 0 && Board.Instance.Year - BirthTime >= MATURE_AGE)
         {
             fightLevel = amount;
 
@@ -201,11 +211,11 @@ public class Creature : SoftBody
 
             foreach (SoftBody softBody in SoftBodies)
             {
-                var otherCreature = (Creature)softBody;
+                var otherCreature = softBody as Creature;
 
                 if (otherCreature != null)
                 {
-                    float distance = MathUtils.CalcTileDist(PositionX, PositionY, otherCreature.PositionX, otherCreature.PositionY);
+                    float distance = MathUtils.CalcTileDist(transform.position.x, transform.position.y, otherCreature.transform.position.x, otherCreature.transform.position.y);
                     float combinedRadius = GetRadius() * INFLUENCE_AREA + otherCreature.GetRadius();
 
                     if (distance < combinedRadius)
@@ -233,14 +243,16 @@ public class Creature : SoftBody
 
             foreach (SoftBody softBody in SoftBodies)
             {
-                var potentialMate = (Creature)softBody;
+                var potentialMate = softBody as Creature;
 
-                if (potentialMate.BirthTime > MATURE_AGE &&
+                if (potentialMate != null &&
+                    potentialMate.BirthTime > MATURE_AGE &&
                    (potentialMate.fightLevel < fightLevel ||
                     potentialMate.CreatureBrain.Outputs()[9] > -1))
                 {
-                    float distance = MathUtils.CalcTileDist(PositionX, PositionY, potentialMate.PositionX,
-                        potentialMate.PositionY);
+                    float distance = MathUtils.CalcTileDist(
+                        transform.position.x, transform.position.y,
+                        potentialMate.transform.position.x, potentialMate.transform.position.y);
                     float combinedRadius = GetRadius() * INFLUENCE_AREA + potentialMate.GetRadius();
 
                     if (distance < combinedRadius)
@@ -272,12 +284,12 @@ public class Creature : SoftBody
 
                     parent.Energy -= spawnSize * (parent.Energy - SAFE_SIZE / availibleEnergy);
 
-                    newPosX += parent.PositionX / parents.Count;
-                    newPosY += parent.PositionY / parents.Count;
+                    newPosX += parent.transform.position.x / parents.Count;
+                    newPosY += parent.transform.position.y / parents.Count;
                     newHue += parent.Hue / parents.Count;
                     newSat += parent.Saturation / parents.Count;
                     newBri += parent.Brightness / parents.Count;
-                    newMouthHue += parent.mouthHue / parents.Count;
+                    newMouthHue += parent.MouthHue / parents.Count;
 
                     parentnames[i] = parent.name;
 
@@ -290,32 +302,29 @@ public class Creature : SoftBody
                 newSat = 1;
                 newBri = 1;
 
-                Board.Creatures.Add(
-                    new Creature(
-                        newName: NameGenerator.CombineNames(parentnames),
-                        mutateName: true,
-                        newBrain: newBrain,
-                        newMouthHue: newMouthHue,
-                        parents: parents,
-                        newGeneration: hightestGen + 1,
-                        newRotation: Random.Range(0, 2 * Mathf.PI),
-                        newRotationVelocity: 0,
-                        newPositionX: newPosX,
-                        newPositionY: newPosY,
-                        newVelocityX: 0,
-                        newVelocityY: 0,
-                        newEnergy: spawnSize,
-                        newDensity: Density,
-                        newHue: newHue,
-                        newSaturation: newSat,
-                        newBrightness: newBri));
+                var newCreatureObj = Instantiate(Board.Instance.CreaturePrefab, new Vector3(newPosX, newPosY, 0), Random.rotation, Board.Instance.CreatureGroup.transform);
+                var newCreature = newCreatureObj.GetComponent<Creature>();
+
+                newCreature.name = NameGenerator.CombineNames(parentnames);
+                newCreature.name = name.Length >= 1 ? NameGenerator.SanitizeName(NameGenerator.MutateName(name)) : NameGenerator.NewName();
+                newCreature.CreatureBrain = newBrain;
+                newCreature.MouthHue = newMouthHue;
+                newCreature.Parents = parents;
+                newCreature.Generation = hightestGen + 1;
+                newCreature.Energy = spawnSize;
+                newCreature.Density = Density;
+                newCreature.Hue = newHue;
+                newCreature.Saturation = newSat;
+                newCreature.Brightness = newBri;
+
+                Board.Creatures.Add(newCreature);
             }
         }
     }
 
-    public void Metabolize(float timeStep)
+    private void Metabolize(float timeStep)
     {
-        float age = AGE_FACTOR * (Board.Year - BirthTime);
+        float age = AGE_FACTOR * (Board.Instance.Year - BirthTime);
         Energy -= Energy * METABOLISM_ENERGY * age * timeStep;
 
         if (Energy < SAFE_SIZE)
@@ -338,16 +347,22 @@ public class Creature : SoftBody
         {
             for (int y = MinY; y < MaxY; y++)
             {
-                Board.SoftBodies.Remove(new Vector2(x, y));
+                Board.Tiles[x, y].SoftBodies.Remove(this);
+                gameObject.SetActive(false);
             }
         }
+    }
+
+    private void OnDisable()
+    {
+        DestroyObject(gameObject, 1f);
     }
 
     public void See()
     {
         for (int i = 0; i < VisionAngles.Length; i++)
         {
-            float visionAngle = rotation + VisionAngles[i];
+            float visionAngle = Rotation + VisionAngles[i];
             float endX = GetVisionEndX(i);
             float endY = GetVisionEndY(i);
 
@@ -370,8 +385,8 @@ public class Creature : SoftBody
 
             for (int j = 0; j < visionDistances[i] + 1; j++)
             {
-                int tileX = (int)(PositionX + Mathf.Cos(visionAngle) * j);
-                int tileY = (int)(PositionY + Mathf.Sin(visionAngle) * j);
+                int tileX = (int)(transform.position.x + Mathf.Cos(visionAngle) * j);
+                int tileY = (int)(transform.position.y + Mathf.Sin(visionAngle) * j);
 
                 if (tileX != prevTileX || tileY != prevTileY)
                 {
@@ -394,27 +409,27 @@ public class Creature : SoftBody
 
             float visionLineLength = visionDistances[i];
 
-            foreach (SoftBody potentialOccluder in potentialOccuders)
+            for (int j = 0; j < potentialOccuders.Count; j++)
             {
-                float posX = potentialOccluder.PositionX - PositionX;
-                float posY = potentialOccluder.PositionY - PositionY;
-                float radius = potentialOccluder.GetRadius();
+                float posX = potentialOccuders[j].transform.position.x - transform.position.x;
+                float posY = potentialOccuders[j].transform.position.y - transform.position.y;
+                float radius = potentialOccuders[j].GetRadius();
                 float translatedX = rotationMatrix[0, 0] * posX + rotationMatrix[1, 0] * posY;
                 float translatedY = rotationMatrix[0, 1] * posX + rotationMatrix[1, 1] * posY;
 
                 if (Mathf.Abs(translatedY) <= radius)
                 {
                     if (translatedX >= 0 && translatedX < visionLineLength && translatedY < visionLineLength ||
-                            MathUtils.CalcTileDist(0, 0, translatedX, translatedY) < radius ||
-                            MathUtils.CalcTileDist(visionLineLength, 0, translatedX, translatedY) < radius)
+                        MathUtils.CalcTileDist(0, 0, translatedX, translatedY) < radius ||
+                        MathUtils.CalcTileDist(visionLineLength, 0, translatedX, translatedY) < radius)
                     {
                         visionLineLength = translatedX - Mathf.Sqrt(radius * radius - translatedY * translatedY);
-                        visionOccludedX[i] = PositionX + visionLineLength * Mathf.Cos(visionAngle);
-                        visionOccludedY[i] = PositionY + visionLineLength * Mathf.Sin(visionAngle);
+                        visionOccludedX[i] = transform.position.x + visionLineLength * Mathf.Cos(visionAngle);
+                        visionOccludedY[i] = transform.position.y + visionLineLength * Mathf.Sin(visionAngle);
 
-                        visionResults[i * 3] = potentialOccluder.Hue;
-                        visionResults[i * 3 + 1] = potentialOccluder.Saturation;
-                        visionResults[i * 3 + 2] = potentialOccluder.Brightness;
+                        visionResults[i * 3] = potentialOccuders[j].Hue;
+                        visionResults[i * 3 + 1] = potentialOccuders[j].Saturation;
+                        visionResults[i * 3 + 2] = potentialOccuders[j].Brightness;
                     }
                 }
             }
@@ -425,12 +440,11 @@ public class Creature : SoftBody
     {
         if (x >= 0 && x < Board.BoardWidth && y >= 0 && y < Board.BoardHeight)
         {
-            SoftBody occluder;
-            if (Board.SoftBodies.TryGetValue(new Vector2(x, y), out occluder))
+            for (int i = 0; i < Board.Tiles[x, y].SoftBodies.Count; i++)
             {
-                if (!softBodies.Contains(occluder) && occluder != this)
+                if (Board.Tiles[x, y].SoftBodies[i] != this && Board.Tiles[x, y].SoftBodies[i] != null)
                 {
-                    softBodies.Add(occluder);
+                    softBodies.Add(Board.Tiles[x, y].SoftBodies[i]);
                 }
             }
         }
@@ -438,14 +452,14 @@ public class Creature : SoftBody
 
     private float GetVisionEndX(int index)
     {
-        float visionTotalAngle = rotation + VisionAngles[index];
-        return PositionX + visionDistances[index] * Mathf.Cos(visionTotalAngle);
+        float visionTotalAngle = Rotation + VisionAngles[index];
+        return transform.position.x + visionDistances[index] * Mathf.Cos(visionTotalAngle);
     }
 
     private float GetVisionEndY(int index)
     {
-        float visionTotalAngle = rotation + VisionAngles[index];
-        return PositionY + visionDistances[index] * Mathf.Sin(visionTotalAngle);
+        float visionTotalAngle = Rotation + VisionAngles[index];
+        return transform.position.y + visionDistances[index] * Mathf.Sin(visionTotalAngle);
     }
 
     public void MaintainPopulation()
@@ -473,16 +487,26 @@ public class Creature : SoftBody
         return Energy - prevEnergy[ENERGY_HISTORY_LENGTH - 1] / ENERGY_HISTORY_LENGTH / timeStep;
     }
 
+    private void SetPrevEnergy()
+    {
+        for (int i = ENERGY_HISTORY_LENGTH - 1; i >= 1; i--)
+        {
+            prevEnergy[i] = prevEnergy[i - 1];
+        }
+
+        prevEnergy[0] = Energy;
+    }
+
     private Tile GetRandomCoveredTile()
     {
         float radius = GetRadius();
         float choiceX = 0;
         float choiceY = 0;
 
-        while (MathUtils.CalcTileDist(PositionX, PositionY, choiceX, choiceY) > radius)
+        while (MathUtils.CalcTileDist(transform.position.x, transform.position.y, choiceX, choiceY) > radius)
         {
-            choiceX = Random.value * 2 * radius - radius + PositionX;
-            choiceY = Random.value * 2 * radius - radius + PositionY;
+            choiceX = Random.value * 2 * radius - radius + transform.position.x;
+            choiceY = Random.value * 2 * radius - radius + transform.position.y;
         }
 
         int x = XBound((int)choiceX);

@@ -9,32 +9,31 @@ Prefab:
     m_Modifications: []
     m_RemovedComponents: []
   m_ParentPrefab: {fileID: 0}
-  m_RootGameObject: {fileID: 1527492605471566}
+  m_RootGameObject: {fileID: 1342818815395570}
   m_IsPrefabParent: 1
---- !u!1 &1527492605471566
+--- !u!1 &1342818815395570
 GameObject:
   m_ObjectHideFlags: 0
   m_PrefabParentObject: {fileID: 0}
   m_PrefabInternal: {fileID: 100100000}
   serializedVersion: 5
   m_Component:
-  - component: {fileID: 4765459475118432}
-  - component: {fileID: 212129136277498960}
-  - component: {fileID: 61061700600123014}
-  - component: {fileID: 114888988386219540}
+  - component: {fileID: 4712080324274864}
+  - component: {fileID: 212197750067901534}
+  - component: {fileID: 114210223955274458}
   m_Layer: 0
-  m_Name: Tile
+  m_Name: Creature
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &4765459475118432
+--- !u!4 &4712080324274864
 Transform:
   m_ObjectHideFlags: 1
   m_PrefabParentObject: {fileID: 0}
   m_PrefabInternal: {fileID: 100100000}
-  m_GameObject: {fileID: 1527492605471566}
+  m_GameObject: {fileID: 1342818815395570}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
@@ -42,41 +41,45 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!61 &61061700600123014
-BoxCollider2D:
-  m_ObjectHideFlags: 1
-  m_PrefabParentObject: {fileID: 0}
-  m_PrefabInternal: {fileID: 100100000}
-  m_GameObject: {fileID: 1527492605471566}
-  m_Enabled: 1
-  m_Density: 1
-  m_Material: {fileID: 0}
-  m_IsTrigger: 0
-  m_UsedByEffector: 0
-  m_Offset: {x: 0, y: 0}
-  serializedVersion: 2
-  m_Size: {x: 1, y: 1}
---- !u!114 &114888988386219540
+--- !u!114 &114210223955274458
 MonoBehaviour:
   m_ObjectHideFlags: 1
   m_PrefabParentObject: {fileID: 0}
   m_PrefabInternal: {fileID: 100100000}
-  m_GameObject: {fileID: 1527492605471566}
+  m_GameObject: {fileID: 1342818815395570}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d31ca3935fea1ac48a84e408eb8e3bbc, type: 3}
+  m_Script: {fileID: 11500000, guid: bfef694fbd22aa541ba9304948e3225e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  FoodType: 0
-  Fertility: 0
-  tileColor: {r: 0, g: 0, b: 0, a: 0}
+  VelocityX: 0
+  VelocityY: 0
+  EnergyDensity: 0
+  Density: 0
+  Hue: 0
+  Saturation: 0
+  Brightness: 0
+  BirthTime: 0
+  MinX: 0
+  MinY: 0
+  MaxX: 0
+  MaxY: 0
+  PrevMinX: 0
+  PrevMinY: 0
+  PrevMaxX: 0
+  PrevMaxY: 0
   SoftBodies: []
---- !u!212 &212129136277498960
+  Id: 0
+  Generation: 0
+  Parents: []
+  PreferredRank: 8
+  MouthHue: 0
+--- !u!212 &212197750067901534
 SpriteRenderer:
   m_ObjectHideFlags: 1
   m_PrefabParentObject: {fileID: 0}
   m_PrefabInternal: {fileID: 100100000}
-  m_GameObject: {fileID: 1527492605471566}
+  m_GameObject: {fileID: 1342818815395570}
   m_Enabled: 1
   m_CastShadows: 0
   m_ReceiveShadows: 0
@@ -100,9 +103,9 @@ SpriteRenderer:
   m_AutoUVMaxDistance: 0.5
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
-  m_SortingLayerID: 0
+  m_SortingLayerID: -604430549
   m_SortingOrder: 0
-  m_Sprite: {fileID: 21300000, guid: d6c6119b6247e564c90c1f1e57b0aa45, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 1f7b995a09c859c468f9f8811e8745ba, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0

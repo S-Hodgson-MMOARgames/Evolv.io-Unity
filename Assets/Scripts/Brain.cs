@@ -21,19 +21,20 @@ public class Brain
         if (tbrain == null)
         {
             axons = new Axon[BRAIN_WIDTH - 1, BRAIN_HEIGHT, BRAIN_HEIGHT - 1];
-            neurons = new float[BRAIN_WIDTH, BRAIN_HEIGHT];
 
-            for (int x = 0; x < BRAIN_WIDTH; x++)
+            for (int x = 0; x < BRAIN_WIDTH - 1; x++)
             {
                 for (int y = 0; y < BRAIN_HEIGHT; y++)
                 {
-                    for (int z = 0; z < BRAIN_HEIGHT; z++)
+                    for (int z = 0; z < BRAIN_HEIGHT - 1; z++)
                     {
                         float startingWeight = (Random.value * 2 - 1) * STARTING_AXON_VARIABLILITY;
                         axons[x, y, z] = new Axon(startingWeight, AXON_START_MUTABILITY);
                     }
                 }
             }
+
+            neurons = new float[BRAIN_WIDTH, BRAIN_HEIGHT];
 
             for (int x = 0; x < BRAIN_WIDTH; x++)
             {
@@ -95,7 +96,7 @@ public class Brain
 
     public void Input(float[] inputs)
     {
-        const int end = BRAIN_WIDTH - 1;
+        int end = BRAIN_WIDTH - 1;
 
         for (int i = 0; i < NUMBER_OF_INPUTS; i++)
         {
@@ -109,15 +110,18 @@ public class Brain
 
         neurons[0, BRAIN_HEIGHT - 1] = 1;
 
-        for (int x = 0; x < BRAIN_HEIGHT; x++)
+        for (int x = 1; x < BRAIN_WIDTH; x++)
         {
-            for (int y = 0; y < BRAIN_WIDTH; y++)
+            for (int y = 0; y < BRAIN_HEIGHT - 1; y++)
             {
                 float total = 0;
 
                 for (int i = 0; i < BRAIN_HEIGHT; i++)
                 {
-                    total += neurons[x - 1, i] * axons[x - 1, i, y].Weight;
+                    float neuron = neurons[x - 1, i];
+                    float axonWeight = axons[x - 1, i, y].Weight;
+
+                    total += neuron * axonWeight;
                 }
 
                 if (x == BRAIN_WIDTH - 1)
@@ -134,7 +138,7 @@ public class Brain
 
     public float[] Outputs()
     {
-        const int end = BRAIN_WIDTH - 1;
+        int end = BRAIN_WIDTH - 1;
         var output = new float[NUMBER_OF_INPUTS];
 
         for (int i = 0; i < NUMBER_OF_INPUTS; i++)

@@ -3,6 +3,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+[RequireComponent(typeof(SpriteRenderer))]
 public class SoftBody : MonoBehaviour
 {
     private const float COLLISION_FORCE = 0.01f;
@@ -10,8 +11,6 @@ public class SoftBody : MonoBehaviour
     protected const float INFLUENCE_AREA = 2.0f;
     protected const float FRICTION = 0.004f;
 
-    public float PositionX;
-    public float PositionY;
     public float VelocityX;
     public float VelocityY;
 
@@ -20,7 +19,8 @@ public class SoftBody : MonoBehaviour
     /// </summary>
     public float EnergyDensity;
     public float Density;
-    protected float Energy
+
+    public float Energy
     {
         get
         {
@@ -58,26 +58,13 @@ public class SoftBody : MonoBehaviour
     public int PrevMaxY;
 
     public List<SoftBody> SoftBodies;
+    private SpriteRenderer spriteRenderer;
 
-    public SoftBody(
-        float newPositionX, float newPositionY,
-        float newVelocityX, float newVelocityY,
-        float newEnergy, float newDensity,
-        float newHue, float newSaturation, float newBrightness)
+    protected virtual void Awake()
     {
-        BirthTime = Board.Year;
+        spriteRenderer = gameObject.GetComponent<SpriteRenderer>();
 
-        PositionX = newPositionX;
-        PositionY = newPositionY;
-        VelocityX = newVelocityX;
-        VelocityY = newVelocityY;
-
-        Energy = newEnergy;
-        Density = newDensity;
-
-        Hue = newHue;
-        Saturation = newSaturation;
-        Brightness = newBrightness;
+        BirthTime = Board.Instance.Year;
 
         SetSoftBodies(false);
         SetSoftBodies(false);
@@ -94,37 +81,43 @@ public class SoftBody : MonoBehaviour
         PrevMaxX = MaxX;
         PrevMaxY = MaxY;
 
-        MinX = XBound((int)Mathf.Floor(PositionX - radius));
-        MinY = YBound((int)Mathf.Floor(PositionY - radius));
-        MaxX = XBound((int)Mathf.Floor(PositionX + radius));
-        MaxY = YBound((int)Mathf.Floor(PositionY + radius));
+        MinX = XBound((int)Mathf.Floor(transform.position.x - radius));
+        MinY = YBound((int)Mathf.Floor(transform.position.y - radius));
+        MaxX = XBound((int)Mathf.Floor(transform.position.x + radius));
+        MaxY = YBound((int)Mathf.Floor(transform.position.y + radius));
 
-        if (PrevMinX != MinX || PrevMinY != MinY ||
-            PrevMaxX != MaxX || PrevMaxY != MaxY)
+        if (PrevMinX == MinX && PrevMinY == MinY && PrevMaxX == MaxX && PrevMaxY == MaxY)
         {
-            if (shouldRemove)
+            return;
+        }
+
+        if (shouldRemove)
+        {
+            for (int x = PrevMinX; x <= PrevMaxY; x++)
             {
-                for (int x = PrevMinX; x <= PrevMaxY; x++)
+                for (int y = PrevMinY; y <= PrevMaxY; y++)
                 {
-                    for (int y = PrevMinY; y <= PrevMaxY; y++)
+                    if (x < MinX ||
+                        x > MaxX ||
+                        y < MinY ||
+                        y > MaxY)
                     {
-                        if (x < MinX || x > MaxX ||
-                            y < MinY || x > MaxY)
-                        {
-                            Board.SoftBodies.Remove(new Vector2(x, y));
-                        }
+                        Board.Tiles[x, y].SoftBodies.Remove(this);
                     }
                 }
             }
-            for (int x = MinX; x <= MaxY; x++)
+        }
+
+        for (int x = MinX; x <= MaxY; x++)
+        {
+            for (int y = MinY; y <= MaxY; y++)
             {
-                for (int y = MinY; y <= MaxY; y++)
+                if (x < PrevMinX ||
+                    x > PrevMaxX ||
+                    y < PrevMinY ||
+                    y > PrevMaxY)
                 {
-                    if (x < PrevMinX || x > PrevMaxX ||
-                        y < PrevMinY || x > PrevMaxY)
-                    {
-                        Board.SoftBodies.Add(new Vector2(x, y), this);
-                    }
+                    Board.Tiles[x, y].SoftBodies.Add(this);
                 }
             }
         }
@@ -134,38 +127,58 @@ public class SoftBody : MonoBehaviour
     {
         SoftBodies = new List<SoftBody>();
 
-        for (int x = MinX; x < MaxX; x++)
+        for (int x = MinX; x <= MaxX; x++)
         {
-            for (int y = MinY; y < MaxY; y++)
+            for (int y = MinY; y <= MaxY; y++)
             {
-                foreach (KeyValuePair<Vector2, SoftBody> softBody in Board.SoftBodies)
+                for (int i = 0; i < Board.Tiles[x, y].SoftBodies.Count; i++)
                 {
-                    if (SoftBodies.Contains(softBody.Value) && softBody.Value != this)
+                    if (Board.Tiles[x, y].SoftBodies[i] != this && Board.Tiles[x, y].SoftBodies[i] != null)
                     {
-                        SoftBodies.Add(softBody.Value);
+                        SoftBodies.Add(Board.Tiles[x, y].SoftBodies[i]);
                     }
                 }
             }
         }
 
-        foreach (SoftBody softBody in SoftBodies)
+        for (int i = 0; i < SoftBodies.Count; i++)
         {
-            float distance = MathUtils.CalcTileDist(PositionX, PositionY, softBody.PositionX, softBody.PositionY);
-            float combineRadius = GetRadius() + softBody.GetRadius();
+            if (SoftBodies[i] == null)
+            {
+                SoftBodies.Remove(SoftBodies[i]);
+                continue;
+            }
+
+            float distance = MathUtils.CalcTileDist(
+                transform.position.x,
+                transform.position.y,
+                SoftBodies[i].transform.position.x,
+                SoftBodies[i].transform.position.y);
+            float combineRadius = GetRadius() + SoftBodies[i].GetRadius();
 
             if (distance < combineRadius)
             {
                 float force = combineRadius * COLLISION_FORCE;
-                VelocityX += (PositionX - softBody.PositionX) / distance * force / GetMass();
-                VelocityY += (PositionY - softBody.PositionY) / distance * force / GetMass();
+                VelocityX += (transform.position.x - SoftBodies[i].transform.position.x) / distance * force / GetMass();
+                VelocityY += (transform.position.y - SoftBodies[i].transform.position.y) / distance * force / GetMass();
             }
         }
     }
 
     protected virtual void ApplyMotions(float timeStep)
     {
-        PositionX = BodyXBound(PositionX + VelocityX * timeStep);
-        PositionY = BodyYBound(PositionY + VelocityY * timeStep);
+        if (float.IsInfinity(VelocityX) || float.IsNaN(VelocityX) ||
+            float.IsInfinity(VelocityY) || float.IsNaN(VelocityY))
+        {
+            Debug.LogError(name + " bad Velocity");
+            return;
+        }
+
+        gameObject.transform.position = new Vector3
+        {
+            x = BodyXBound(transform.position.x + VelocityX * timeStep),
+            y = BodyYBound(transform.position.y + VelocityY * timeStep)
+        };
 
         VelocityX *= Mathf.Max(0, 1 - FRICTION / GetMass());
         VelocityY *= Mathf.Max(0, 1 - FRICTION / GetMass());
@@ -200,6 +213,13 @@ public class SoftBody : MonoBehaviour
 
     protected float GetMass()
     {
-        return Energy / EnergyDensity * Density;
+        var temp = Energy / EnergyDensity * Density;
+
+        if (float.IsPositiveInfinity(temp) || float.IsNegativeInfinity(temp) || float.IsNaN(temp))
+        {
+            Debug.LogError(name + " bad mass");
+        }
+
+        return temp;
     }
 }
