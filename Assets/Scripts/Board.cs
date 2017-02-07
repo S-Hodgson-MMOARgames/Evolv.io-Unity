@@ -174,7 +174,7 @@ public class Board : Singleton<Board>
             if (choosePreExisting)
             {
                 Creature creature = GetRandomCreature();
-                creature.MaintainPopulation();
+                creature.MaintainEnergy();
             }
             else
             {

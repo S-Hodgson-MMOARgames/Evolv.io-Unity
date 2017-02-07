@@ -79,6 +79,11 @@ public class Creature : SoftBody
 
     private void Update()
     {
+        if (Energy <= SAFE_SIZE)
+        {
+            ReturnToEarth();
+        }
+
         float timeStep = Time.deltaTime * Board.Instance.SimSpeedMultiplier;
 
         SetPrevEnergy();
@@ -358,7 +363,7 @@ public class Creature : SoftBody
         DestroyObject(gameObject, 1f);
     }
 
-    public void See()
+    private void See()
     {
         for (int i = 0; i < VisionAngles.Length; i++)
         {
@@ -462,7 +467,7 @@ public class Creature : SoftBody
         return transform.position.y + visionDistances[index] * Mathf.Sin(visionTotalAngle);
     }
 
-    public void MaintainPopulation()
+    public void MaintainEnergy()
     {
         Energy += SAFE_SIZE;
         Reproduce(SAFE_SIZE);
