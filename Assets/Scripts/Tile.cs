@@ -15,19 +15,7 @@ public class Tile : MonoBehaviour
     private readonly Color waterColor   = Color.HSVToRGB(0.0f, 0.0f, 0.0f);
 
     public float FoodType;
-
-    public float FoodLevel
-    {
-        get
-        {
-            return foodLevel;
-        }
-        set
-        {
-            foodLevel = value;
-        }
-    }
-
+    public float FoodLevel;
     public float Fertility;
 
     [SerializeField]
@@ -36,7 +24,6 @@ public class Tile : MonoBehaviour
     {
         get
         {
-            Iterate();
             Color foodColor = Color.HSVToRGB(FoodType, 1, 1);
 
             if (Fertility > 1)
@@ -55,7 +42,6 @@ public class Tile : MonoBehaviour
     private float lastUpdateTime;
 
     public List<SoftBody> SoftBodies;
-    private float foodLevel;
     private SpriteRenderer spriteRenderer;
 
     private void Awake()
@@ -63,7 +49,7 @@ public class Tile : MonoBehaviour
         spriteRenderer = gameObject.GetComponent<SpriteRenderer>();
     }
 
-    public void Iterate()
+    private void Update()
     {
         float updateTime = Board.Instance.Year;
 
@@ -98,9 +84,13 @@ public class Tile : MonoBehaviour
         }
 
         FoodLevel = Mathf.Max(FoodLevel, 0);
-        lastUpdateTime = updateTime;
 
-        spriteRenderer.color = TileColor;
+        if (spriteRenderer.isVisible)
+        {
+            spriteRenderer.color = TileColor;
+        }
+
+        lastUpdateTime = updateTime;
     }
 
     private static Color InterpolateColor(Color a, Color b, float x)
@@ -146,9 +136,6 @@ public class Tile : MonoBehaviour
 
     private static float GetGrowthOverTimeRange(float startTime, float endTime)
     {
-        const float tempRange = Board.MAX_TEMPERATURE - Board.MIN_TEMPERATURE;
-        const float meanTemp = Board.MIN_TEMPERATURE + tempRange * 0.5f;
-
-        return (endTime - startTime) * meanTemp + tempRange / Mathf.PI / 4 * (Mathf.Sin(2 * Mathf.PI * startTime) - Mathf.Sin(2 * Mathf.PI * endTime));
+        return (endTime - startTime) * (Board.MIN_TEMPERATURE + (Board.MAX_TEMPERATURE - Board.MIN_TEMPERATURE) * 0.5f) + (Board.MAX_TEMPERATURE - Board.MIN_TEMPERATURE) / Mathf.PI / 4 * (Mathf.Sin(2 * Mathf.PI * startTime) - Mathf.Sin(2 * Mathf.PI * endTime));
     }
 }

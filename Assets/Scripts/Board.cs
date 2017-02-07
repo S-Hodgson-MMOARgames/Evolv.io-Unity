@@ -128,20 +128,6 @@ public class Board : Singleton<Board>
         }
 
         GlobalTemperature = GetGrowthRate(GetSeason());
-        float tempChangeAtStartFrame = GlobalTemperature - GetGrowthRate(GetSeason() - Year);
-        float tempChangeAtEndOfFrame = GetGrowthRate(GetSeason() + Year) - GlobalTemperature;
-
-        // Temp change flipped direction
-        if (tempChangeAtStartFrame * tempChangeAtEndOfFrame <= 0)
-        {
-            for (int x = 0; x < BoardWidth; x++)
-            {
-                for (int y = 0; y < BoardHeight; y++)
-                {
-                    Tiles[x,y].Iterate();
-                }
-            }
-        }
 
         MaintainCreatureMinimum(false);
     }

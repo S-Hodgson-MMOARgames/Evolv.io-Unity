@@ -5,23 +5,22 @@ using UnityEngine;
 
 public class Brain
 {
-    private const int MEMORY_COUNT = 1;
     public const int NUMBER_OF_INPUTS = 11;
+    private const int MEMORY_COUNT = 1;
     private const int BRAIN_WIDTH = 3;
     private const int BRAIN_HEIGHT = NUMBER_OF_INPUTS + MEMORY_COUNT + 1;
 
     private const float AXON_START_MUTABILITY = 0.0005f;
     private const float STARTING_AXON_VARIABLILITY = 1.0f;
 
-    private readonly Axon[,,] axons;
-    private readonly float[,] neurons;
+    private Axon[,,] axons= new Axon[BRAIN_WIDTH - 1, BRAIN_HEIGHT, BRAIN_HEIGHT - 1];
+    private float[,] neurons = new float[BRAIN_WIDTH, BRAIN_HEIGHT];
+    private float[] output = new float[NUMBER_OF_INPUTS];
 
     public Brain(Axon[,,] tbrain, float[,] tneurons)
     {
         if (tbrain == null)
         {
-            axons = new Axon[BRAIN_WIDTH - 1, BRAIN_HEIGHT, BRAIN_HEIGHT - 1];
-
             for (int x = 0; x < BRAIN_WIDTH - 1; x++)
             {
                 for (int y = 0; y < BRAIN_HEIGHT; y++)
@@ -33,8 +32,6 @@ public class Brain
                     }
                 }
             }
-
-            neurons = new float[BRAIN_WIDTH, BRAIN_HEIGHT];
 
             for (int x = 0; x < BRAIN_WIDTH; x++)
             {
@@ -72,10 +69,7 @@ public class Brain
             {
                 for (int z = 0; z < BRAIN_HEIGHT - 1; z++)
                 {
-                    float axonAngle = Mathf.Atan2((y + z) / 2 - BRAIN_HEIGHT / 2, x - BRAIN_WIDTH / 2) / (2 * Mathf.PI) + Mathf.PI;
-                    Brain parentForAxon = parents[(int)((axonAngle + randomParentRotation) % 1.0f) * parentsTotal].CreatureBrain;
-
-                    newBrain[x, y, z] = parentForAxon.axons[x, y, z].MutateAxon();
+                    newBrain[x, y, z] = parents[(int)((Mathf.Atan2((y + z) / 2 - BRAIN_HEIGHT / 2, x - BRAIN_WIDTH / 2) / (2 * Mathf.PI) + Mathf.PI + randomParentRotation) % 1.0f) * parentsTotal].CreatureBrain.axons[x, y, z].MutateAxon();
                 }
             }
         }
@@ -84,10 +78,7 @@ public class Brain
         {
             for (int y = 0; y < BRAIN_HEIGHT; y++)
             {
-                float axonAngle = Mathf.Atan2(y - BRAIN_HEIGHT / 2, x - BRAIN_WIDTH / 2) / (2 * Mathf.PI) + Mathf.PI;
-                Brain parentForAxon = parents[(int)((axonAngle + randomParentRotation) % 1.0f * parentsTotal)].CreatureBrain;
-
-                newNeurons[x, y] = parentForAxon.neurons[x, y];
+                newNeurons[x, y] = parents[(int)((Mathf.Atan2(y - BRAIN_HEIGHT / 2, x - BRAIN_WIDTH / 2) / (2 * Mathf.PI) + Mathf.PI + randomParentRotation) % 1.0f * parentsTotal)].CreatureBrain.neurons[x, y];
             }
         }
 
@@ -96,8 +87,6 @@ public class Brain
 
     public void Input(float[] inputs)
     {
-        int end = BRAIN_WIDTH - 1;
-
         for (int i = 0; i < NUMBER_OF_INPUTS; i++)
         {
             neurons[0, i] = inputs[i];
@@ -105,7 +94,7 @@ public class Brain
 
         for (int i = 0; i < MEMORY_COUNT; i++)
         {
-            neurons[0, NUMBER_OF_INPUTS + i] = neurons[end, NUMBER_OF_INPUTS + i];
+            neurons[0, NUMBER_OF_INPUTS + i] = neurons[BRAIN_WIDTH - 1, NUMBER_OF_INPUTS + i];
         }
 
         neurons[0, BRAIN_HEIGHT - 1] = 1;
@@ -136,15 +125,11 @@ public class Brain
         }
     }
 
-    private float[] output = new float[NUMBER_OF_INPUTS];
-
     public float[] Outputs()
     {
-        int end = BRAIN_WIDTH - 1;
-
         for (int i = 0; i < NUMBER_OF_INPUTS; i++)
         {
-            output[i] = neurons[end, i];
+            output[i] = neurons[BRAIN_WIDTH - 1, i];
         }
 
         return output;
