@@ -136,10 +136,11 @@ public class Brain
         }
     }
 
+    private float[] output = new float[NUMBER_OF_INPUTS];
+
     public float[] Outputs()
     {
         int end = BRAIN_WIDTH - 1;
-        var output = new float[NUMBER_OF_INPUTS];
 
         for (int i = 0; i < NUMBER_OF_INPUTS; i++)
         {

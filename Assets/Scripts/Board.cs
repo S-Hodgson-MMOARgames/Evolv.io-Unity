@@ -146,12 +146,12 @@ public class Board : Singleton<Board>
         MaintainCreatureMinimum(false);
     }
 
-    public static float GetSeason()
+    private static float GetSeason()
     {
         return Instance.Year % 1.0f;
     }
 
-    public static float GetGrowthRate(float time)
+    private static float GetGrowthRate(float time)
     {
         float tempRange = MAX_TEMPERATURE - MIN_TEMPERATURE;
         return MIN_TEMPERATURE + tempRange * 0.5f - tempRange * 0.5f * Mathf.Cos(time * 2 * Mathf.PI);

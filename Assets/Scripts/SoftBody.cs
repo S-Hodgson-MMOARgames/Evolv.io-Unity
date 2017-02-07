@@ -58,7 +58,8 @@ public class SoftBody : MonoBehaviour
     public int PrevMaxY;
 
     public List<SoftBody> SoftBodies;
-    private SpriteRenderer spriteRenderer;
+    protected SpriteRenderer spriteRenderer;
+    private Vector3 position;
 
     protected virtual void Awake()
     {
@@ -125,7 +126,7 @@ public class SoftBody : MonoBehaviour
 
     protected void Collide()
     {
-        SoftBodies = new List<SoftBody>();
+        SoftBodies.Clear();
 
         for (int x = MinX; x <= MaxX; x++)
         {
@@ -167,18 +168,10 @@ public class SoftBody : MonoBehaviour
 
     protected virtual void ApplyMotions(float timeStep)
     {
-        if (float.IsInfinity(VelocityX) || float.IsNaN(VelocityX) ||
-            float.IsInfinity(VelocityY) || float.IsNaN(VelocityY))
-        {
-            Debug.LogError(name + " bad Velocity");
-            return;
-        }
+        position.x = BodyXBound(transform.position.x + VelocityX * timeStep);
+        position.y = BodyYBound(transform.position.y + VelocityY * timeStep);
 
-        gameObject.transform.position = new Vector3
-        {
-            x = BodyXBound(transform.position.x + VelocityX * timeStep),
-            y = BodyYBound(transform.position.y + VelocityY * timeStep)
-        };
+        gameObject.transform.position = position;
 
         VelocityX *= Mathf.Max(0, 1 - FRICTION / GetMass());
         VelocityY *= Mathf.Max(0, 1 - FRICTION / GetMass());
@@ -213,13 +206,6 @@ public class SoftBody : MonoBehaviour
 
     protected float GetMass()
     {
-        var temp = Energy / EnergyDensity * Density;
-
-        if (float.IsPositiveInfinity(temp) || float.IsNegativeInfinity(temp) || float.IsNaN(temp))
-        {
-            Debug.LogError(name + " bad mass");
-        }
-
-        return temp;
+        return Energy / EnergyDensity * Density;
     }
 }

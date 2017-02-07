@@ -44,6 +44,7 @@ public class Creature : SoftBody
     public List<Creature> Parents;
     public Brain CreatureBrain;
     public float PreferredRank = 8;
+    private List<SoftBody> potentialOccuders = new List<SoftBody>();
 
     public float MouthHue;
 
@@ -90,6 +91,8 @@ public class Creature : SoftBody
 
         Collide();
         Metabolize(timeStep);
+
+        gameObject.transform.lossyScale.Set(GetRadius(), GetRadius(), 1);
     }
 
     private void LateUpdate()
@@ -113,10 +116,9 @@ public class Creature : SoftBody
         rotationVelocity *= Mathf.Max(0, 1 - FRICTION / GetMass());
     }
 
+    private float[] inputs = new float[Brain.NUMBER_OF_INPUTS];
     private void UseBrain(float timeStep, bool isAutonomus)
     {
-        var inputs = new float[Brain.NUMBER_OF_INPUTS];
-
         for (int i = 0; i < MAX_VISION_RESULTS; i++)
         {
             inputs[i] = visionResults[i];
@@ -214,13 +216,14 @@ public class Creature : SoftBody
 
             Energy -= fightLevel * FIGHT_ENERGY * Energy * timeStep;
 
-            foreach (SoftBody softBody in SoftBodies)
+            for (int i = 0; i < SoftBodies.Count; i++)
             {
-                var otherCreature = softBody as Creature;
+                var otherCreature = SoftBodies[i] as Creature;
 
                 if (otherCreature != null)
                 {
-                    float distance = MathUtils.CalcTileDist(transform.position.x, transform.position.y, otherCreature.transform.position.x, otherCreature.transform.position.y);
+                    float distance = MathUtils.CalcTileDist(transform.position.x, transform.position.y,
+                        otherCreature.transform.position.x, otherCreature.transform.position.y);
                     float combinedRadius = GetRadius() * INFLUENCE_AREA + otherCreature.GetRadius();
 
                     if (distance < combinedRadius)
@@ -246,14 +249,14 @@ public class Creature : SoftBody
 
             float availibleEnergy = Energy - SAFE_SIZE;
 
-            foreach (SoftBody softBody in SoftBodies)
+            for (int i = 0; i < SoftBodies.Count; i++)
             {
-                var potentialMate = softBody as Creature;
+                var potentialMate = SoftBodies[i] as Creature;
 
                 if (potentialMate != null &&
                     potentialMate.BirthTime > MATURE_AGE &&
-                   (potentialMate.fightLevel < fightLevel ||
-                    potentialMate.CreatureBrain.Outputs()[9] > -1))
+                    (potentialMate.fightLevel < fightLevel ||
+                     potentialMate.CreatureBrain.Outputs()[9] > -1))
                 {
                     float distance = MathUtils.CalcTileDist(
                         transform.position.x, transform.position.y,
@@ -363,6 +366,7 @@ public class Creature : SoftBody
         DestroyObject(gameObject, 1f);
     }
 
+    private float[,] rotationMatrix = new float[2, 2];
     private void See()
     {
         for (int i = 0; i < VisionAngles.Length; i++)
@@ -386,7 +390,7 @@ public class Creature : SoftBody
             int prevTileX = -1;
             int prevTileY = -1;
 
-            var potentialOccuders = new List<SoftBody>();
+            potentialOccuders.Clear();
 
             for (int j = 0; j < visionDistances[i] + 1; j++)
             {
@@ -407,7 +411,6 @@ public class Creature : SoftBody
                 prevTileY = tileY;
             }
 
-            var rotationMatrix = new float[2, 2];
             rotationMatrix[0, 0] = rotationMatrix[1, 1] = Mathf.Cos(-visionAngle);
             rotationMatrix[0, 1] = Mathf.Sin(-visionAngle);
             rotationMatrix[1, 0] = -rotationMatrix[0, 1];
