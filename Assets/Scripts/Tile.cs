@@ -15,7 +15,13 @@ public class Tile : MonoBehaviour
     private readonly Color waterColor   = Color.HSVToRGB(0.0f, 0.0f, 0.0f);
 
     public float FoodType;
-    public float FoodLevel;
+
+    public float FoodLevel
+    {
+        get { return foodLevel; }
+    }
+
+    private float foodLevel;
     public float Fertility;
 
     [SerializeField]
@@ -24,16 +30,21 @@ public class Tile : MonoBehaviour
     {
         get
         {
-            Color foodColor = Color.HSVToRGB(FoodType, 1, 1);
-
             if (Fertility > 1)
             {
                 return waterColor;
             }
 
-            tileColor = FoodLevel < MAX_GROWTH_LEVEL ?
-                InterpolateColorFixedHue(InterpolateColor(barrenColor, fertileColor, Fertility), foodColor, FoodLevel / MAX_GROWTH_LEVEL, FoodType) :
-                InterpolateColorFixedHue(foodColor, blackColor, 1.0f - MAX_GROWTH_LEVEL / FoodLevel, FoodType);
+            Color foodColor = Color.HSVToRGB(FoodType, 1, 1);
+
+            if (FoodLevel < MAX_GROWTH_LEVEL)
+            {
+                tileColor = InterpolateColorFixedHue(InterpolateColor(barrenColor, fertileColor, Fertility), foodColor, FoodLevel / MAX_GROWTH_LEVEL, FoodType);
+            }
+            else
+            {
+                tileColor = InterpolateColorFixedHue(foodColor, blackColor, 1.0f - MAX_GROWTH_LEVEL / FoodLevel, FoodType);
+            }
 
             return tileColor;
         }
@@ -47,50 +58,63 @@ public class Tile : MonoBehaviour
     private void Awake()
     {
         spriteRenderer = gameObject.GetComponent<SpriteRenderer>();
+        spriteRenderer.color = TileColor;
     }
 
-    private void Update()
+    public void AddFood(float amount, bool canIterate = true)
     {
-        float updateTime = Board.Instance.Year;
-
-        if (!(Mathf.Abs(lastUpdateTime - updateTime) >= 0.00001f))
+        if (canIterate)
         {
-            return;
+            Iterate();
         }
+        foodLevel += amount;
+    }
 
-        float growthChange = GetGrowthOverTimeRange(lastUpdateTime, updateTime);
+    public void RemoveFood(float amount, bool canIterate = true)
+    {
+        if (canIterate)
+        {
+            Iterate();
+        }
+        foodLevel -= amount;
+    }
 
+    public void Iterate()
+    {
         // If we're a water tile.
         if (Fertility > 1)
         {
-            FoodLevel = 0;
+            foodLevel = 0;
         }
         else
         {
+            float updateTime = Board.Instance.Year;
+
+            if (!(Mathf.Abs(lastUpdateTime - updateTime) >= 0.00001f))
+            {
+                return;
+            }
+
+            float growthChange = GetGrowthOverTimeRange(lastUpdateTime, updateTime);
+
             if (growthChange > 0)
             {
                 if (FoodLevel < MAX_GROWTH_LEVEL)
                 {
-                    float newDistToMax = (MAX_GROWTH_LEVEL - FoodLevel) * Mathf.Pow(MathUtils.EULERS_NUMBER, -growthChange * Fertility * FOOD_GROWTH_RATE);
-                    float foodGrowthAmount = MAX_GROWTH_LEVEL - newDistToMax - FoodLevel;
-
-                    FoodLevel += foodGrowthAmount;
+                    AddFood(MAX_GROWTH_LEVEL - (MAX_GROWTH_LEVEL - FoodLevel) * Mathf.Pow(MathUtils.EULERS_NUMBER, -growthChange * Fertility * FOOD_GROWTH_RATE) - FoodLevel, false);
                 }
                 else
                 {
-                    FoodLevel -= FoodLevel - FoodLevel * Mathf.Pow(MathUtils.EULERS_NUMBER, growthChange * FOOD_GROWTH_RATE);
+                    RemoveFood(FoodLevel - FoodLevel * Mathf.Pow(MathUtils.EULERS_NUMBER, growthChange * FOOD_GROWTH_RATE), false);
                 }
             }
-        }
 
-        FoodLevel = Mathf.Max(FoodLevel, 0);
+            foodLevel = Mathf.Max(FoodLevel, 0);
 
-        if (spriteRenderer.isVisible)
-        {
             spriteRenderer.color = TileColor;
-        }
 
-        lastUpdateTime = updateTime;
+            lastUpdateTime = updateTime;
+        }
     }
 
     private static Color InterpolateColor(Color a, Color b, float x)

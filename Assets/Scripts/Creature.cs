@@ -34,6 +34,7 @@ public class Creature : SoftBody
     private static readonly float[] VisionAngles = {0.0f, -0.4f, 0.4f};
     private readonly float[] visionDistances = {0.0f, -0.7f, 0.7f};
 
+    private float[] inputs = new float[Brain.NUMBER_OF_INPUTS];
     private float[] prevEnergy = new float[ENERGY_HISTORY_LENGTH];
     private float[] visionResults = new float[MAX_VISION_RESULTS];
     private float[] visionOccludedX = new float[VisionAngles.Length];
@@ -116,7 +117,6 @@ public class Creature : SoftBody
         rotationVelocity *= Mathf.Max(0, 1 - FRICTION / GetMass());
     }
 
-    private float[] inputs = new float[Brain.NUMBER_OF_INPUTS];
     private void UseBrain(float timeStep, bool isAutonomus)
     {
         for (int i = 0; i < MAX_VISION_RESULTS; i++)
@@ -190,7 +190,7 @@ public class Creature : SoftBody
                 foodToEat = coveredTile.FoodLevel;
             }
 
-            coveredTile.FoodLevel -= foodToEat;
+            coveredTile.RemoveFood(foodToEat);
 
             float foodDistance = Mathf.Abs(coveredTile.FoodType - MouthHue);
             float multiplier = 1.0f - foodDistance / FOOD_SENSITIVITY;
@@ -348,7 +348,7 @@ public class Creature : SoftBody
 
         for (int i = 0; i < pieces; i++)
         {
-            GetRandomCoveredTile().FoodLevel += Energy / pieces;
+            GetRandomCoveredTile().AddFood(Energy / pieces);
         }
 
         for (int x = MinX; x < MaxX; x++)
@@ -378,10 +378,8 @@ public class Creature : SoftBody
             visionOccludedX[i] = endX;
             visionOccludedY[i] = endY;
 
-            Color color = Board.GetTileColor((int)endX, (int)endY);
-
             float hue, sat, bri;
-            Color.RGBToHSV(color, out hue, out sat, out bri);
+            Color.RGBToHSV(Board.GetTileColor((int)endX, (int)endY), out hue, out sat, out bri);
 
             visionResults[i * 3] = hue;
             visionResults[i * 3 + 1] = sat;
@@ -486,7 +484,7 @@ public class Creature : SoftBody
         {
             energyLost = Mathf.Min(energyLost, Energy);
             Energy -= energyLost;
-            GetRandomCoveredTile().FoodLevel += energyLost;
+            GetRandomCoveredTile().AddFood(energyLost);
         }
     }
 

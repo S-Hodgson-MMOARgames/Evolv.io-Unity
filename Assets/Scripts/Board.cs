@@ -85,6 +85,7 @@ public class Board : Singleton<Board>
 
         int rocksToAdd = Random.Range(10, 50);
         Rocks = new List<SoftBody>();
+
         for (int i = 0; i < rocksToAdd; i++)
         {
             float hue, sat, bri;
@@ -112,12 +113,12 @@ public class Board : Singleton<Board>
         }
     }
 
-    private void Update()
+    private void FixedUpdate()
     {
-        float prevYear = Year;
-        Year += Time.deltaTime * SimSpeedMultiplier;
+        float prevYear = Instance.Year;
+        Instance.Year += Time.deltaTime * SimSpeedMultiplier;
 
-        if (Math.Abs(Mathf.Floor(Year / RECORD_POPULATION_FEQUENCY) - Mathf.Floor(prevYear / RECORD_POPULATION_FEQUENCY)) > 0.00001f)
+        if (Math.Abs(Mathf.Floor(Instance.Year / RECORD_POPULATION_FEQUENCY) - Mathf.Floor(prevYear / RECORD_POPULATION_FEQUENCY)) > 0.00001f)
         {
             for (int i = POPULATION_HISTORY_LENGTH - 1; i >= 1; i--)
             {
@@ -128,6 +129,19 @@ public class Board : Singleton<Board>
         }
 
         GlobalTemperature = GetGrowthRate(GetSeason());
+        float tempChangedIntoFrame = GlobalTemperature - GetGrowthRate(GetSeason() - Instance.Year);
+        float tempChangedOutOfFrame = GetGrowthRate(GetSeason() + Instance.Year) - GlobalTemperature;
+
+        if (tempChangedIntoFrame * tempChangedOutOfFrame <= 0)
+        {
+            for (int x = 0; x < BoardHeight; x++)
+            {
+                for (int y = 0; y < BoardHeight; y++)
+                {
+                    Tiles[x,y].Iterate();
+                }
+            }
+        }
 
         MaintainCreatureMinimum(false);
     }
@@ -164,7 +178,7 @@ public class Board : Singleton<Board>
             }
             else
             {
-                var newCreatureObj = Instantiate(Instance.CreaturePrefab, new Vector3(Random.Range(0, BoardWidth), Random.Range(0, BoardHeight), 0), Quaternion.AngleAxis(Random.Range(0,360), Vector3.forward), Instance.CreatureGroup.transform);
+                var newCreatureObj = Instantiate(Instance.CreaturePrefab, new Vector3(Random.Range(0, BoardWidth), Random.Range(0, BoardHeight), 0), Quaternion.AngleAxis(Random.Range(0, 360), Vector3.forward), Instance.CreatureGroup.transform);
                 var newCreature = newCreatureObj.GetComponent<Creature>();
 
                 newCreature.name = NameGenerator.NewName();
